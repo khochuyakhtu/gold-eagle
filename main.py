@@ -17,8 +17,6 @@ print(f"{MAGENTA}{'=' * 70}{RESET}")
 print(ascii_banner)
 print(tagline)
 print(f"{MAGENTA}{'=' * 70}{RESET}")
-print(f"{GREEN}{BOLD}{UNDERLINE}Telegram: https://t.me/khochuyakhtu{RESET}")
-print(f"{MAGENTA}{'=' * 70}{RESET}")
 
 USER_AGENTS_FILE_PATH = 'user-configuration.json'
 
