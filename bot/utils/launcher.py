@@ -13,8 +13,8 @@ from bot.utils.helpers import check_proxy
 from session_setup import create_session
 
 def send_request(session, available_taps, count, token, proxies, extra_headers=None):
-    url = 'https://api-gw.geagle.online/tap'
-
+    # url = 'https://api-gw.geagle.online/tap'
+    url = 'https://gold-eagle-api.fly.dev/tap'
     base_headers = {
         'accept': 'application/json, text/plain, */*',
         'accept-language': 'uk',
@@ -41,8 +41,8 @@ def send_request(session, available_taps, count, token, proxies, extra_headers=N
     data = {
         "available_taps": available_taps,
         "count": count,
-        "timestamp": timestamp,
-        "salt": salt
+        "salt": salt,
+        "timestamp": timestamp
     }
     
     start_time = time.time()
@@ -89,7 +89,9 @@ async def process():
                 proxies = {"http": proxy_url, "https": proxy_url}
 
             try:
-                check_proxy(session, proxies)
+                print(f"{RESET}1. {GREEN}Пробуємо підключитися через проксі")
+                check_response = session.get("https://httpbin.org/ip", proxies=proxies, timeout=10)
+                print(f"{GREEN}Проксі працює")
 
                 count = random.randint(140, 289)
 
