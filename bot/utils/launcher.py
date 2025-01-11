@@ -9,7 +9,6 @@ from bot.config.constants import (
     ascii_banner, tagline
 )
 
-from bot.utils.helpers import check_proxy
 from session_setup import create_session
 
 def send_request(session, available_taps, count, token, proxies, extra_headers=None):
