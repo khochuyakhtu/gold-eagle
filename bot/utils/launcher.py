@@ -18,7 +18,7 @@ def showDelay(step, sleep_time):
         minutes = remaining // 60
         seconds = remaining % 60
                         
-        print(f"\r{RESET}5.{RED}Очікуємо {minutes:02d}:{seconds:02d} до завершення затримки.\n", end="")
+        print(f"\r{RESET}5.{RED}Очікуємо {minutes:02d}:{seconds:02d} до завершення затримки.", end="")
         time.sleep(1)
 
 def send_request(session, available_taps, count, token, proxies, extra_headers=None):
