@@ -3,6 +3,7 @@ import random
 import json
 import requests
 import uuid
+from datetime import datetime
 
 from bot.config.constants import (
     MAGENTA, CYAN, YELLOW, GREEN, RED, BOLD, UNDERLINE, RESET,
@@ -10,6 +11,15 @@ from bot.config.constants import (
 )
 
 from session_setup import create_session
+
+def showDelay(step, sleep_time):
+    print(f"{RESET}{step}.{RED}Затримка: {sleep_time:.2f} секунд")
+    for remaining in range(int(sleep_time), 0, -1):
+        minutes = remaining // 60
+        seconds = remaining % 60
+                        
+        print(f"\r{RESET}5.{RED}Очікуємо {minutes:02d}:{seconds:02d} до завершення затримки.\n", end="")
+        time.sleep(1)
 
 def send_request(session, available_taps, count, token, proxies, extra_headers=None):
     # url = 'https://api-gw.geagle.online/tap'
@@ -107,15 +117,20 @@ async def process():
                 total_requests += 1
 
                 delay = random.uniform(10, 30)
+                
                 print(f"{RESET}3.{YELLOW}Вираховуємо затримку:{RESET} {delay:.2f} секунд\n")
-                time.sleep(delay)
-                print(f"{RESET}4.{GREEN}Затримку в {delay:.2f} секунд завершено. Виконуємо наступний запит {RESET}\n")
+                showDelay(4, delay)
 
                 longDelayAfterRequest = 56
                 if total_requests >= longDelayAfterRequest:
-                    sleep_time = random.uniform(11 * 60, 18 * 60)
-                    print(f"{RESET}5.{RED}Очікуємо {sleep_time:.2f} секунд після {longDelayAfterRequest} запитів...{RESET}\n")
-                    time.sleep(sleep_time)
+                    current_hour = datetime.now().hour
+                    if 0 <= current_hour < 7:
+                        sleep_time = random.uniform(50 * 60, 80 * 60)
+                    else:
+                        sleep_time = random.uniform(11 * 60, 18 * 60)
+
+                    showDelay(5, sleep_time)
+
                     total_requests = 0
             except requests.exceptions.RequestException as e:
                 print(f"{RED}Помилка під час звернення через {proxies}: {e}\n")
