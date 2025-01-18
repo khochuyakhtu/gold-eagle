@@ -10,6 +10,7 @@ import base64
 import hmac
 import hashlib
 import time
+import struct
 
 from bot.config.constants import (
     MAGENTA, CYAN, YELLOW, GREEN, RED, BOLD, UNDERLINE, RESET,
@@ -56,6 +57,16 @@ def generate_totp_in_base64(secret_hex, step=2, digits=6, algorithm=hashlib.sha1
     otp_base64 = base64.b64encode(otp_str.encode()).decode()  # Encode in Base64
     
     return otp_base64
+
+def hotp(key, counter, digits=6, digest='sha1'):
+    key = base64.b32decode(key.upper() + '=' * ((8 - len(key)) % 8))
+    counter = struct.pack('>Q', counter)
+    mac = hmac.new(key, counter, digest).digest()
+    offset = mac[-1] & 0x0f
+    binary = struct.unpack('>L', mac[offset:offset+4])[0] & 0x7fffffff
+    otp_str = str(binary)[-digits:].zfill(digits)
+    
+    return base64.b64encode(otp_str.encode()).decode()
 
 def send_request(session, available_taps, count, token, proxies, extra_headers=None):
     url = 'https://gold-eagle-api.fly.dev/tap'
