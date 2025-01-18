@@ -4,6 +4,12 @@ import json
 import requests
 import uuid
 from datetime import datetime
+import base64
+import random
+import base64
+import hmac
+import hashlib
+import time
 
 from bot.config.constants import (
     MAGENTA, CYAN, YELLOW, GREEN, RED, BOLD, UNDERLINE, RESET,
@@ -12,17 +18,46 @@ from bot.config.constants import (
 
 from session_setup import create_session
 
+bytes_hex = "3132333435363738393031323334353637383930"
+
+totp_options = {
+    "encoding": "HEX",
+    "digits": 6,
+    "step": 2,
+    "algorithm": "SHA1",
+}
+
+def create_digest(key, counter, algorithm):
+    hmac_digest = hmac.new(
+        key=key,
+        msg=counter.to_bytes(8, byteorder="big"),
+        digestmod=getattr(hashlib, algorithm.lower())
+    ).digest()
+    return hmac_digest
+
 def showDelay(step, sleep_time):
     print(f"{RESET}{step}.{RED}Затримка: {sleep_time:.2f} секунд")
     for remaining in range(int(sleep_time), 0, -1):
         minutes = remaining // 60
         seconds = remaining % 60
                         
-        print(f"\r{RESET}5.{RED}Очікуємо {minutes:02d}:{seconds:02d} до завершення затримки.", end="")
+        print(f"\r{RESET}{RED}Очікуємо {minutes:02d}:{seconds:02d} до завершення затримки.", end="")
         time.sleep(1)
 
+def generate_totp_in_base64(secret_hex, step=2, digits=6, algorithm=hashlib.sha1):
+    secret_bytes = bytes.fromhex(secret_hex)
+    time_counter = int(time.time() // step)
+    time_counter_bytes = time_counter.to_bytes(8, byteorder="big")
+    hmac_hash = hmac.new(secret_bytes, time_counter_bytes, algorithm).digest()
+    offset = hmac_hash[-1] & 0x0F
+    code_int = int.from_bytes(hmac_hash[offset:offset+4], byteorder="big") & 0x7FFFFFFF
+    otp = code_int % (10 ** digits)
+    otp_str = str(otp).zfill(digits)
+    otp_base64 = base64.b64encode(otp_str.encode()).decode()  # Encode in Base64
+    
+    return otp_base64
+
 def send_request(session, available_taps, count, token, proxies, extra_headers=None):
-    # url = 'https://api-gw.geagle.online/tap'
     url = 'https://gold-eagle-api.fly.dev/tap'
     base_headers = {
         'accept': 'application/json, text/plain, */*',
@@ -47,15 +82,20 @@ def send_request(session, available_taps, count, token, proxies, extra_headers=N
     timestamp = int(time.time())
     salt = str(uuid.uuid4())
     
+    generated_nonce = generate_totp_in_base64(secret_hex=bytes_hex)
+
     data = {
         "available_taps": available_taps,
         "count": count,
+        "nonce": generated_nonce,
         "salt": salt,
         "timestamp": timestamp
     }
     
     start_time = time.time()
-    response = session.post(url, headers=base_headers, json=data, proxies=proxies, timeout=(5, 30))
+
+
+    response = session.post(url, headers=base_headers, json=data, proxies=proxies, timeout=(10, 30))
     end_time = time.time()
     
     print(f"{GREEN}Запит тривав {end_time - start_time:.2f} секунд")
@@ -89,7 +129,7 @@ async def process():
             custom_headers = account_cfg["headers"]
             account_name = account_cfg["name"]
 
-            print(f"{GREEN}==================================================")
+            print(f"\n{GREEN}==================================================")
             print(f"{GREEN}{BOLD}Виконуємо запит для акаунту: {account_name}")
             print(f"{GREEN}==================================================\n")
             if proxy_url.strip().lower() == "no proxy":
@@ -102,7 +142,7 @@ async def process():
                 check_response = session.get("https://httpbin.org/ip", proxies=proxies, timeout=10)
                 print(f"{GREEN}Проксі працює")
 
-                count = random.randint(140, 289)
+                count = random.randint(800, 900)
 
                 response_json = send_request(
                     session=session,
@@ -121,13 +161,13 @@ async def process():
                 print(f"{RESET}3.{YELLOW}Вираховуємо затримку:{RESET} {delay:.2f} секунд\n")
                 showDelay(4, delay)
 
-                longDelayAfterRequest = 56
+                longDelayAfterRequest = 1
                 if total_requests >= longDelayAfterRequest:
                     current_hour = datetime.now().hour
                     if 0 <= current_hour < 7:
                         sleep_time = random.uniform(50 * 60, 80 * 60)
                     else:
-                        sleep_time = random.uniform(11 * 60, 18 * 60)
+                        sleep_time = random.uniform(10 * 60, 10 * 61)
 
                     showDelay(5, sleep_time)
 
