@@ -19,7 +19,8 @@ from bot.config.constants import (
 
 from session_setup import create_session
 
-bytes_hex = "3132333435363738393031323334353637383930"
+BYTES_HEX = "3132333435363738393031323334353637383930" #This code can be updated. TODO: Get code per each request
+ACCOUNTS_COUNT = 7
 
 totp_options = {
     "encoding": "HEX",
@@ -54,7 +55,7 @@ def generate_totp_in_base64(secret_hex, step=2, digits=6, algorithm=hashlib.sha1
     code_int = int.from_bytes(hmac_hash[offset:offset+4], byteorder="big") & 0x7FFFFFFF
     otp = code_int % (10 ** digits)
     otp_str = str(otp).zfill(digits)
-    otp_base64 = base64.b64encode(otp_str.encode()).decode()  # Encode in Base64
+    otp_base64 = base64.b64encode(otp_str.encode()).decode()
     
     return otp_base64
 
@@ -65,7 +66,7 @@ def hotp(key, counter, digits=6, digest='sha1'):
     offset = mac[-1] & 0x0f
     binary = struct.unpack('>L', mac[offset:offset+4])[0] & 0x7fffffff
     otp_str = str(binary)[-digits:].zfill(digits)
-    
+
     return base64.b64encode(otp_str.encode()).decode()
 
 def send_request(session, available_taps, count, token, proxies, extra_headers=None):
@@ -93,7 +94,7 @@ def send_request(session, available_taps, count, token, proxies, extra_headers=N
     timestamp = int(time.time())
     salt = str(uuid.uuid4())
     
-    generated_nonce = generate_totp_in_base64(secret_hex=bytes_hex)
+    generated_nonce = generate_totp_in_base64(secret_hex=BYTES_HEX)
 
     data = {
         "available_taps": available_taps,
@@ -150,7 +151,7 @@ async def process():
 
             try:
                 print(f"{RESET}1. {GREEN}Пробуємо підключитися через проксі")
-                check_response = session.get("https://httpbin.org/ip", proxies=proxies, timeout=10)
+                session.get("https://httpbin.org/ip", proxies=proxies, timeout=10)
                 print(f"{GREEN}Проксі працює")
 
                 count = random.randint(800, 900)
@@ -172,13 +173,12 @@ async def process():
                 print(f"{RESET}3.{YELLOW}Вираховуємо затримку:{RESET} {delay:.2f} секунд\n")
                 showDelay(4, delay)
 
-                longDelayAfterRequest = 1
-                if total_requests >= longDelayAfterRequest:
+                if total_requests >= ACCOUNTS_COUNT:
                     current_hour = datetime.now().hour
                     if 0 <= current_hour < 7:
-                        sleep_time = random.uniform(50 * 60, 80 * 60)
+                        sleep_time = random.uniform(30 * 60, 60 * 60)
                     else:
-                        sleep_time = random.uniform(10 * 60, 10 * 61)
+                        sleep_time = random.uniform(11 * 60, 14 * 60)
 
                     showDelay(5, sleep_time)
 
