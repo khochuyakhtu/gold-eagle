@@ -9,21 +9,26 @@ import hashlib
 
 from datetime import datetime
 from bot.config.constants import (CYAN, YELLOW, GREEN, RED, BOLD, RESET)
-from bot.utils.helpers import get_secret
+from bot.utils.helpers import get_secret, get_sleep_time
 from session_setup import create_session
 
-API_URL = 'https://gold-eagle-api.fly.dev/tap'
+TAP_API_URL = 'https://gold-eagle-api.fly.dev/tap'
+ME_API_URL = 'https://gold-eagle-api.fly.dev/user/me/progress'
 MAX_RETRIES = 3
 USER_AGENTS_FILE_PATH = './bot/config/user-configuration.json'
 SECRET_URL = 'https://telegram.geagle.online/assets/index-DI7KSCOy.js'
+DAY_DELAY_IN_MINUTES = (10, 14)
+NIGHT_DELAY_IN_MINUTES = (20, 50)
+NIGHT_HOURS = (0, 7) # Діапазон годин для нічного часу (0:00 - 6:59)
+PERSENTAGE_FROM_AVAILABLE_ENERGY = (0.1, 0.99)
 
 def showDelay(step, sleep_time):
-    print(f"{RESET}{step}.{RED}Затримка: {sleep_time:.2f} секунд")
+    print(f"\r{RESET}{step}.{YELLOW} Затримка: {RESET}{sleep_time:.2f} секунд(и)")
     for remaining in range(int(sleep_time), 0, -1):
         minutes = remaining // 60
         seconds = remaining % 60
                         
-        print(f"\r{RESET}{RED}Очікуємо {minutes:02d}:{seconds:02d} до завершення затримки.", end="")
+        print(f"\r{step+1}. {CYAN}Очікуємо: {RESET}{minutes:02d}:{seconds:02d} до завершення затримки.", end="")
         time.sleep(1)
 
 def generate_totp_in_base64(secret_hex, step=2, digits=6, algorithm=hashlib.sha1):
@@ -63,9 +68,7 @@ def create_headers(token, extra_headers=None):
 def fetch_secret():
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            secret = get_secret(SECRET_URL)
-            print(f'Секрет успішно отримано: {secret}')
-            return secret
+            return get_secret(SECRET_URL)
         except SystemExit as e:
             print(f'Спроба {attempt} не вдалася: {e}')
             if attempt < MAX_RETRIES:
@@ -88,18 +91,24 @@ def prepare_data(available_taps, count, secret):
     }
     return data
 
-def send_api_request(session, data, headers, proxies):
+def send_tap_request(session, data, headers, proxies):
     start_time = time.time()
-    response = session.post(API_URL, headers=headers, json=data, proxies=proxies, timeout=(10, 30))
+    response = session.post(TAP_API_URL, headers=headers, json=data, proxies=proxies, timeout=(10, 30))
     end_time = time.time()
-    print(f"{GREEN}Запит тривав {end_time - start_time:.2f} секунд")
+    print(f"{RESET}8. {CYAN}Запит до {GREEN}{TAP_API_URL}{CYAN} тривав {end_time - start_time:.2f} секунд")
     return response.json()
 
-def send_request(session, available_taps, count, token, proxies, extra_headers=None):
-    headers = create_headers(token, extra_headers)
+def send_me_request(session, headers, proxies):
+    start_time = time.time()
+    response = session.get(ME_API_URL, headers=headers, proxies=proxies, timeout=(10, 30))
+    end_time = time.time()
+    print(f"{RESET}3. {YELLOW}Запит до {GREEN}{ME_API_URL}{YELLOW} тривав {end_time - start_time:.2f} секунд")
+    return response.json()
+
+def send_request(session, available_taps, count, token, proxies, headers):
     secret = fetch_secret()
     data = prepare_data(available_taps, count, secret)
-    return send_api_request(session, data, headers, proxies)
+    return send_tap_request(session, data, headers, proxies)
 
 async def process():
     session = create_session(
@@ -131,37 +140,40 @@ async def process():
                 proxies = {"http": proxy_url, "https": proxy_url}
 
             try:
-                print(f"{RESET}1. {GREEN}Пробуємо підключитися через проксі")
+                print(f"{RESET}1. {YELLOW}Пробуємо підключитися через проксі")
                 session.get("https://httpbin.org/ip", proxies=proxies, timeout=10)
-                print(f"{GREEN}Проксі працює")
+                print(f"{RESET}2. {CYAN}Проксі працює")
 
-                count = random.randint(800, 900)
-                            
+                headers = create_headers(token, custom_headers)
+
+                user_information_json = send_me_request(session=session, headers=headers, proxies=proxies)
+                coins_amount = user_information_json["coins_amount"]
+                energy = user_information_json["energy"]
+                print(f"{RESET}4. {CYAN}Доступна енергія: {energy}")
+                print(f"{RESET}5. {YELLOW}Поточна кількість монет:{coins_amount}")
+
+                taps_count = int(energy * random.uniform(PERSENTAGE_FROM_AVAILABLE_ENERGY[0], PERSENTAGE_FROM_AVAILABLE_ENERGY[1]))
+
                 response_json = send_request(
                     session=session,
                     available_taps=available_taps,
-                    count=count,
+                    count=taps_count,
                     token=token,
                     proxies=proxies,
-                    extra_headers=custom_headers
+                    headers=headers
                 )
-                print(f"{RESET}2.{CYAN}Відповідь: {RESET} {response_json}. Нараховано: {count} коіни")
+                print(f"{RESET}9. {YELLOW}Відповідь сервера: {RESET} {response_json}. {YELLOW}Нараховано: {RESET}{taps_count} коіни")
 
                 total_requests += 1
 
                 delay = random.uniform(10, 30)
                 
-                print(f"{RESET}3.{YELLOW}Вираховуємо затримку:{RESET} {delay:.2f} секунд\n")
-                showDelay(4, delay)
+                print(f"{RESET}10. {CYAN}Вираховуємо затримку:{RESET} {delay:.2f} секунд(и)")
+                showDelay(11, delay)
 
                 if total_requests >= len(config_data):
-                    current_hour = datetime.now().hour
-                    if 0 <= current_hour < 7:
-                        sleep_time = random.uniform(20 * 60, 60 * 60)
-                    else:
-                        sleep_time = random.uniform(11 * 60, 14 * 60)
-
-                    showDelay(5, sleep_time)
+                    sleep_time = get_sleep_time(DAY_DELAY_IN_MINUTES, NIGHT_DELAY_IN_MINUTES, NIGHT_HOURS)
+                    showDelay(12, sleep_time)
 
                     total_requests = 0
             except requests.exceptions.RequestException as e:

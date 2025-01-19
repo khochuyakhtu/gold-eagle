@@ -1,11 +1,13 @@
 from typing import Any
 from requests import Session
-from bot.config.constants import GREEN, RESET
+from bot.config.constants import CYAN, GREEN, RESET, YELLOW
 import aiohttp
 import requests
 import re
 import base64
 import binascii
+from datetime import datetime
+import random
 
 def check_proxy(http_client: aiohttp.ClientSession, proxies: dict[str, Any]) -> None:
         try:
@@ -27,12 +29,12 @@ def get_secret(url):
             raise ValueError('Змінна TAP_SECRET не знайдена.')
 
         tap_secret = match.group(1)
-        print(f'Значення TAP_SECRET: {tap_secret}')
+        print(f'{RESET}6. {CYAN}Значення TAP_SECRET: {RESET}{tap_secret}')
 
         try:
             secret_bytes = base64.b32decode(tap_secret, casefold=True)
             secret_hex = binascii.hexlify(secret_bytes).decode()
-            print(f'Secret Hex: {secret_hex}')
+            print(f'{RESET}7. {YELLOW}Secret Hex: {RESET}{secret_hex}')
             return secret_hex
         except Exception as e:
             raise ValueError(f'Помилка декодування TAP_SECRET: {e}')
@@ -41,3 +43,8 @@ def get_secret(url):
         raise SystemExit(f'Помилка завантаження файлу: {e}')
     except Exception as e:
         raise SystemExit(f'Помилка: {e}')
+    
+def get_sleep_time(day_range, night_range, night_hours):
+    current_hour = datetime.now().hour
+    delay_range = night_range if night_hours[0] <= current_hour < night_hours[1] else day_range
+    return random.uniform(delay_range[0] * 60, delay_range[1] * 60)
