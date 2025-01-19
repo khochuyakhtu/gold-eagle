@@ -3,39 +3,19 @@ import random
 import json
 import requests
 import uuid
-from datetime import datetime
-import base64
-import random
 import base64
 import hmac
 import hashlib
-import time
-import struct
 
-from bot.config.constants import (
-    MAGENTA, CYAN, YELLOW, GREEN, RED, BOLD, UNDERLINE, RESET,
-    ascii_banner, tagline
-)
-
+from datetime import datetime
+from bot.config.constants import (MAGENTA, CYAN, YELLOW, GREEN, RED, BOLD, RESET, ascii_banner, tagline)
+from bot.utils.helpers import get_secret
 from session_setup import create_session
 
-BYTES_HEX = "3132333435363738393031323334353637383930" #This code can be updated. TODO: Get code per each request
-ACCOUNTS_COUNT = 7
-
-totp_options = {
-    "encoding": "HEX",
-    "digits": 6,
-    "step": 2,
-    "algorithm": "SHA1",
-}
-
-def create_digest(key, counter, algorithm):
-    hmac_digest = hmac.new(
-        key=key,
-        msg=counter.to_bytes(8, byteorder="big"),
-        digestmod=getattr(hashlib, algorithm.lower())
-    ).digest()
-    return hmac_digest
+API_URL = 'https://gold-eagle-api.fly.dev/tap'
+MAX_RETRIES = 3
+USER_AGENTS_FILE_PATH = './bot/config/user-configuration.json'
+SECRET_URL = 'https://telegram.geagle.online/assets/index-DI7KSCOy.js'
 
 def showDelay(step, sleep_time):
     print(f"{RESET}{step}.{RED}Затримка: {sleep_time:.2f} секунд")
@@ -59,18 +39,7 @@ def generate_totp_in_base64(secret_hex, step=2, digits=6, algorithm=hashlib.sha1
     
     return otp_base64
 
-def hotp(key, counter, digits=6, digest='sha1'):
-    key = base64.b32decode(key.upper() + '=' * ((8 - len(key)) % 8))
-    counter = struct.pack('>Q', counter)
-    mac = hmac.new(key, counter, digest).digest()
-    offset = mac[-1] & 0x0f
-    binary = struct.unpack('>L', mac[offset:offset+4])[0] & 0x7fffffff
-    otp_str = str(binary)[-digits:].zfill(digits)
-
-    return base64.b64encode(otp_str.encode()).decode()
-
-def send_request(session, available_taps, count, token, proxies, extra_headers=None):
-    url = 'https://gold-eagle-api.fly.dev/tap'
+def create_headers(token, extra_headers=None):
     base_headers = {
         'accept': 'application/json, text/plain, */*',
         'accept-language': 'uk',
@@ -87,39 +56,56 @@ def send_request(session, available_taps, count, token, proxies, extra_headers=N
         'sec-fetch-site': 'cross-site',
         'user-agent': 'Mozilla/5.0 (Windows NT 6.3)'
     }
-
     if extra_headers:
         base_headers.update(extra_headers)
+    return base_headers
 
-    timestamp = int(time.time())
-    salt = str(uuid.uuid4())
-    
-    generated_nonce = generate_totp_in_base64(secret_hex=BYTES_HEX)
+def fetch_secret():
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            secret = get_secret(SECRET_URL)
+            print(f'Секрет успішно отримано: {secret}')
+            return secret
+        except SystemExit as e:
+            print(f'Спроба {attempt} не вдалася: {e}')
+            if attempt < MAX_RETRIES:
+                time.sleep(2)
+            else:
+                print('Усі спроби вичерпано. Завершення програми.')
+                exit(1)
+        except Exception as ex:
+            print(f"{RED}Помилка під час отримання секрету: {ex}{RESET}")
+            exit(1)
 
+def prepare_data(available_taps, count, secret):
+    generated_nonce = generate_totp_in_base64(secret_hex=secret)
     data = {
         "available_taps": available_taps,
         "count": count,
         "nonce": generated_nonce,
-        "salt": salt,
-        "timestamp": timestamp
+        "salt": str(uuid.uuid4()),
+        "timestamp": int(time.time())
     }
-    
+    return data
+
+def send_api_request(session, data, headers, proxies):
     start_time = time.time()
-
-
-    response = session.post(url, headers=base_headers, json=data, proxies=proxies, timeout=(10, 30))
+    response = session.post(API_URL, headers=headers, json=data, proxies=proxies, timeout=(10, 30))
     end_time = time.time()
-    
     print(f"{GREEN}Запит тривав {end_time - start_time:.2f} секунд")
     return response.json()
+
+def send_request(session, available_taps, count, token, proxies, extra_headers=None):
+    headers = create_headers(token, extra_headers)
+    secret = fetch_secret()
+    data = prepare_data(available_taps, count, secret)
+    return send_api_request(session, data, headers, proxies)
 
 async def process():
     print(f"{MAGENTA}{'=' * 70}{RESET}")
     print(ascii_banner)
     print(tagline)
     print(f"{MAGENTA}{'=' * 70}{RESET}")
-
-    USER_AGENTS_FILE_PATH = './bot/config/user-configuration.json'
 
     session = create_session(
         total_retries=5,
@@ -155,7 +141,7 @@ async def process():
                 print(f"{GREEN}Проксі працює")
 
                 count = random.randint(800, 900)
-
+                            
                 response_json = send_request(
                     session=session,
                     available_taps=available_taps,
@@ -173,10 +159,10 @@ async def process():
                 print(f"{RESET}3.{YELLOW}Вираховуємо затримку:{RESET} {delay:.2f} секунд\n")
                 showDelay(4, delay)
 
-                if total_requests >= ACCOUNTS_COUNT:
+                if total_requests >= len(config_data):
                     current_hour = datetime.now().hour
                     if 0 <= current_hour < 7:
-                        sleep_time = random.uniform(30 * 60, 60 * 60)
+                        sleep_time = random.uniform(20 * 60, 60 * 60)
                     else:
                         sleep_time = random.uniform(11 * 60, 14 * 60)
 
