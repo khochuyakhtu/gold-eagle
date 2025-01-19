@@ -1,5 +1,7 @@
 # gold-eagle
 
+Join our partners: https://t.me/khochuyakhtu
+
 Вимоги:
 1. Версія Python >= 3.9.0
 
