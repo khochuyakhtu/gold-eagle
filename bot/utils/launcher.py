@@ -8,7 +8,7 @@ import hmac
 import hashlib
 
 from datetime import datetime
-from bot.config.constants import (MAGENTA, CYAN, YELLOW, GREEN, RED, BOLD, RESET, ascii_banner, tagline)
+from bot.config.constants import (CYAN, YELLOW, GREEN, RED, BOLD, RESET)
 from bot.utils.helpers import get_secret
 from session_setup import create_session
 
@@ -102,11 +102,6 @@ def send_request(session, available_taps, count, token, proxies, extra_headers=N
     return send_api_request(session, data, headers, proxies)
 
 async def process():
-    print(f"{MAGENTA}{'=' * 70}{RESET}")
-    print(ascii_banner)
-    print(tagline)
-    print(f"{MAGENTA}{'=' * 70}{RESET}")
-
     session = create_session(
         total_retries=5,
         backoff_factor=1,
