@@ -17,10 +17,10 @@ ME_API_URL = 'https://gold-eagle-api.fly.dev/user/me/progress'
 MAX_RETRIES = 3
 USER_AGENTS_FILE_PATH = './bot/config/user-configuration.json'
 SECRET_URL = 'https://telegram.geagle.online/assets/index-DI7KSCOy.js'
-DAY_DELAY_IN_MINUTES = (10, 14)
-NIGHT_DELAY_IN_MINUTES = (20, 50)
+DAY_DELAY_IN_MINUTES = (10, 14) # затримка протягом дня від 10 до 14 хвилин
+NIGHT_DELAY_IN_MINUTES = (20, 50) # затримка протягом ночі від 20 до 50 хвилин
 NIGHT_HOURS = (0, 7) # Діапазон годин для нічного часу (0:00 - 6:59)
-PERSENTAGE_FROM_AVAILABLE_ENERGY = (0.1, 0.99)
+PERSENTAGE_FROM_AVAILABLE_ENERGY = (0.1, 0.99) # % від доступної енергії (10%-99%)
 
 def showDelay(step, sleep_time):
     print(f"\r{RESET}{step}.{YELLOW} Затримка: {RESET}{sleep_time:.2f} секунд(и)")
