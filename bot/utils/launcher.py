@@ -121,7 +121,6 @@ async def process():
     with open(USER_AGENTS_FILE_PATH, "r", encoding="utf-8") as f:
         config_data = json.load(f)
 
-    available_taps = 1000
     total_requests = 0
 
     while True:
@@ -130,6 +129,8 @@ async def process():
             proxy_url = account_cfg["proxy"]
             custom_headers = account_cfg["headers"]
             account_name = account_cfg["name"]
+            max_available_taps = account_cfg["max_available_taps"]
+            coins_per_click = account_cfg["coins_per_click"]
 
             print(f"\n{GREEN}==================================================")
             print(f"{GREEN}{BOLD}Виконуємо запит для акаунту: {account_name}")
@@ -152,11 +153,11 @@ async def process():
                 print(f"{RESET}4. {CYAN}Доступна енергія: {energy}")
                 print(f"{RESET}5. {YELLOW}Поточна кількість монет:{coins_amount}")
 
-                taps_count = int(energy * random.uniform(PERSENTAGE_FROM_AVAILABLE_ENERGY[0], PERSENTAGE_FROM_AVAILABLE_ENERGY[1]))
+                taps_count = int(energy * random.uniform(PERSENTAGE_FROM_AVAILABLE_ENERGY[0], PERSENTAGE_FROM_AVAILABLE_ENERGY[1])/ coins_per_click) 
 
                 response_json = send_request(
                     session=session,
-                    available_taps=available_taps,
+                    available_taps=max_available_taps,
                     count=taps_count,
                     token=token,
                     proxies=proxies,
@@ -166,7 +167,7 @@ async def process():
 
                 total_requests += 1
 
-                delay = random.uniform(10, 30)
+                delay = random.uniform(5, 20)
                 
                 print(f"{RESET}10. {CYAN}Вираховуємо затримку:{RESET} {delay:.2f} секунд(и)")
                 showDelay(11, delay)
