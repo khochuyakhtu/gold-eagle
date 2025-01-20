@@ -7,7 +7,9 @@
       "user-agent": "You can find user agent here: https://gist.github.com/pzb/b4b6f57144aea7827ae4",
       "sec-ch-ua": "\"Google Chrome\";v=\"102\", \"Not_A Brand\";v=\"8\"",
       "sec-ch-ua-mobile": "?0"
-    }
+    },
+    "coins_per_click": 1,
+    "max_available_taps": 1000
   },
   {
     "name": "Account Name",
@@ -17,6 +19,8 @@
       "user-agent": "You can find user agent here: https://gist.github.com/pzb/b4b6f57144aea7827ae4",
       "sec-ch-ua": "\"Google Chrome\";v=\"103\"",
       "sec-ch-ua-mobile": "?1"
-    }
+    },
+    "coins_per_click": 1,
+    "max_available_taps": 1000
   }
 ]
